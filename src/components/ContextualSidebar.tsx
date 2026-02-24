@@ -66,7 +66,7 @@ export function ContextualSidebar({
               </Button>
             </div>
 
-            {/* 3. Breadcrumbs (Navigation History) */}
+            {/* Breadcrumbs */}
             {navigationHistory.length > 0 && selectedNode && (
               <div className="flex flex-wrap items-center gap-1 overflow-x-auto pb-1 no-scrollbar">
                 {navigationHistory.map((node, i) => (
@@ -92,6 +92,25 @@ export function ContextualSidebar({
             <div className="p-6">
               {selectedNode && (
                 <div className="space-y-6">
+                  {/* Focus Mode Toggle - Moved to top for high visibility */}
+                  <div className="flex flex-col gap-2">
+                    <Button 
+                      onClick={() => onToggleFocus?.(selectedNode.id)}
+                      variant="outline" 
+                      className={`w-full h-10 text-[11px] uppercase tracking-[0.15em] border-amber-600/40 font-bold shadow-lg transition-all duration-300 ${
+                        focusNodeId === selectedNode.id 
+                          ? 'bg-amber-600 text-black border-amber-400 gold-glow' 
+                          : 'text-amber-500 bg-amber-600/10 hover:bg-amber-600/20'
+                      }`}
+                    >
+                      {focusNodeId === selectedNode.id ? <EyeOff className="w-4 h-4 mr-2" /> : <Eye className="w-4 h-4 mr-2" />}
+                      {focusNodeId === selectedNode.id ? 'Lepaskan Fokus' : 'Fokuskan Ekosistem'}
+                    </Button>
+                    <p className="text-[9px] text-stone-500 italic text-center uppercase tracking-widest">
+                      {focusNodeId === selectedNode.id ? 'Mode fokus aktif: Menampilkan koneksi terdekat' : 'Aktifkan untuk mengisolasi hubungan simpul ini'}
+                    </p>
+                  </div>
+
                   {/* Node Display */}
                   <div className="relative aspect-[4/3] w-full rounded-xl overflow-hidden border-2 border-amber-600/40 gold-glow group">
                     <img
@@ -111,20 +130,6 @@ export function ContextualSidebar({
                     <h1 className="text-3xl font-headline text-amber-500 leading-tight drop-shadow-md">
                       {selectedNode.name}
                     </h1>
-                    
-                    {/* 4. Isolate / Focus Mode Toggle */}
-                    <Button 
-                      onClick={() => onToggleFocus?.(selectedNode.id)}
-                      variant="outline" 
-                      className={`h-8 text-[10px] uppercase tracking-widest border-amber-600/30 font-bold transition-all ${
-                        focusNodeId === selectedNode.id 
-                          ? 'bg-amber-600 text-black border-amber-400' 
-                          : 'text-amber-500 bg-amber-600/5 hover:bg-amber-600/10'
-                      }`}
-                    >
-                      {focusNodeId === selectedNode.id ? <EyeOff className="w-3.5 h-3.5 mr-2" /> : <Eye className="w-3.5 h-3.5 mr-2" />}
-                      {focusNodeId === selectedNode.id ? 'Lepaskan Fokus' : 'Fokuskan Ekosistem'}
-                    </Button>
 
                     <div className="flex items-center gap-4 text-[10px] text-amber-600/80 font-bold uppercase tracking-widest">
                       <span className="flex items-center gap-1">
