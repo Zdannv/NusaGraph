@@ -15,24 +15,26 @@ interface GraphViewProps {
 }
 
 export function GraphView({ data, onNodeClick, onLinkClick, visibleNodes }: GraphViewProps) {
+  const containerRef = useRef<HTMLDivElement>(null);
   const fgRef = useRef<any>();
   const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
 
   useEffect(() => {
-    setDimensions({
-      width: window.innerWidth,
-      height: window.innerHeight - 64 // Navbar height
+    if (!containerRef.current) return;
+
+    // Menggunakan ResizeObserver untuk mendapatkan dimensi kontainer yang akurat
+    const resizeObserver = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        setDimensions({
+          width: entry.contentRect.width,
+          height: entry.contentRect.height,
+        });
+      }
     });
 
-    const handleResize = () => {
-      setDimensions({
-        width: window.innerWidth,
-        height: window.innerHeight - 64
-      });
-    };
+    resizeObserver.observe(containerRef.current);
 
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
+    return () => resizeObserver.disconnect();
   }, []);
 
   const filteredNodes = visibleNodes 
@@ -47,22 +49,14 @@ export function GraphView({ data, onNodeClick, onLinkClick, visibleNodes }: Grap
     : data.links;
 
   return (
-    <div className="w-full h-full bg-[#151310] overflow-hidden">
-      {dimensions.width > 0 && (
+    <div ref={containerRef} className="w-full h-full bg-[#151310] overflow-hidden relative">
+      {dimensions.width > 0 && dimensions.height > 0 && (
         <ForceGraph2D
           ref={fgRef}
           graphData={{ nodes: filteredNodes, links: filteredLinks }}
           width={dimensions.width}
           height={dimensions.height}
           nodeLabel="name"
-          nodeColor={(node: any) => {
-            switch(node.group) {
-              case 'Seni': return '#ECAD1B';
-              case 'Sejarah': return '#BE4E23';
-              case 'Geografi': return '#2563eb';
-              default: return '#737373';
-            }
-          }}
           nodeRelSize={6}
           linkColor={() => 'rgba(236, 173, 27, 0.4)'}
           linkWidth={1.5}
@@ -75,9 +69,8 @@ export function GraphView({ data, onNodeClick, onLinkClick, visibleNodes }: Grap
             const label = node.name;
             const fontSize = 12 / globalScale;
             ctx.font = `${fontSize}px Playfair Display`;
-            const textWidth = ctx.measureText(label).width;
-            const bckgDimensions = [textWidth, fontSize].map(n => n + fontSize * 0.2);
-
+            
+            // Draw node circle
             ctx.beginPath();
             ctx.arc(node.x, node.y, 4, 0, 2 * Math.PI, false);
             ctx.fillStyle = node.group === 'Seni' ? '#ECAD1B' : node.group === 'Sejarah' ? '#BE4E23' : '#2563eb';
@@ -87,12 +80,13 @@ export function GraphView({ data, onNodeClick, onLinkClick, visibleNodes }: Grap
             ctx.shadowBlur = 10;
             ctx.shadowColor = ctx.fillStyle;
             
+            // Draw label
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
             ctx.fillStyle = 'white';
-            ctx.fillText(label, node.x, node.y + 8);
+            ctx.fillText(label, node.x, node.y + 10);
             
-            ctx.shadowBlur = 0; // Reset shadow for other drawing
+            ctx.shadowBlur = 0; 
           }}
         />
       )}
