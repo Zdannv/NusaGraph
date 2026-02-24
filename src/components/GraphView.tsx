@@ -140,7 +140,7 @@ export function GraphView({ data, onNodeClick, onLinkClick, visibleNodes, focusN
             return 0;
           }}
           onNodeClick={onNodeClick}
-          onLinkClick={handleLinkClick}
+          onLinkClick={onLinkClick}
           backgroundColor="#151310"
           nodeCanvasObject={(node: any, ctx: any, globalScale: number) => {
             const isTarget = focusNodeId === node.id;
