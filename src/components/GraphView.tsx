@@ -54,9 +54,11 @@ export function GraphView({ data, onNodeClick, onLinkClick, visibleNodes, focusN
     if (fgRef.current) {
       // D3 Forces optimization
       const fg = fgRef.current;
-      fg.d3Force('charge').strength(-300); // Stable repulsion
-      fg.d3Force('link').distance(120);    // Comfortable spacing
-      fg.d3VelocityDecay(0.3);              // Smooth movement stop
+      const chargeForce = fg.d3Force('charge');
+      if (chargeForce) chargeForce.strength(-300);
+      
+      const linkForce = fg.d3Force('link');
+      if (linkForce) linkForce.distance(120);
     }
   }, [data]);
 
@@ -104,6 +106,7 @@ export function GraphView({ data, onNodeClick, onLinkClick, visibleNodes, focusN
           width={dimensions.width}
           height={dimensions.height}
           nodeRelSize={6}
+          d3VelocityDecay={0.3}
           onNodeHover={(node) => setHoverNode(node)}
           linkColor={(link: any) => {
             const sId = typeof link.source === 'object' ? (link.source as any).id : link.source;
@@ -157,7 +160,6 @@ export function GraphView({ data, onNodeClick, onLinkClick, visibleNodes, focusN
             ctx.beginPath();
             ctx.arc(node.x, node.y, radius, 0, 2 * Math.PI, false);
             
-            // Reduced shadow usage for better performance and stability
             if (focusNodeId) {
               if (isFocused) {
                 ctx.fillStyle = baseColor;
@@ -177,9 +179,8 @@ export function GraphView({ data, onNodeClick, onLinkClick, visibleNodes, focusN
             }
             
             ctx.fill();
-            ctx.shadowBlur = 0; // Reset shadow immediately
+            ctx.shadowBlur = 0; 
             
-            // Label visibility logic
             const showLabel = globalScale > 1.5 || isFocused || isHovered || isTarget;
             
             if (showLabel) {
