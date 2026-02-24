@@ -52,13 +52,21 @@ export function GraphView({ data, onNodeClick, onLinkClick, visibleNodes, focusN
   // Stabilize simulation once graph is loaded
   useEffect(() => {
     if (fgRef.current) {
-      // D3 Forces optimization
       const fg = fgRef.current;
+      
+      // Apply forces with safety checks
       const chargeForce = fg.d3Force('charge');
-      if (chargeForce) chargeForce.strength(-300);
+      if (chargeForce) {
+        chargeForce.strength(-150); // Reduced repulsion for more stability
+      }
       
       const linkForce = fg.d3Force('link');
-      if (linkForce) linkForce.distance(120);
+      if (linkForce) {
+        linkForce.distance(100).strength(1); // Set firm link distance
+      }
+
+      // Re-heat the simulation gently
+      fg.d3ReheatSimulation();
     }
   }, [data]);
 
@@ -106,7 +114,9 @@ export function GraphView({ data, onNodeClick, onLinkClick, visibleNodes, focusN
           width={dimensions.width}
           height={dimensions.height}
           nodeRelSize={6}
-          d3VelocityDecay={0.3}
+          d3VelocityDecay={0.5} // High friction to stop movement quickly
+          d3AlphaDecay={0.05}   // Faster simulation settling
+          cooldownTicks={100}   // Limit calculation steps to prevent explosion
           onNodeHover={(node) => setHoverNode(node)}
           linkColor={(link: any) => {
             const sId = typeof link.source === 'object' ? (link.source as any).id : link.source;
@@ -163,10 +173,6 @@ export function GraphView({ data, onNodeClick, onLinkClick, visibleNodes, focusN
             if (focusNodeId) {
               if (isFocused) {
                 ctx.fillStyle = baseColor;
-                if (isTarget) {
-                    ctx.shadowBlur = 15;
-                    ctx.shadowColor = baseColor;
-                }
               } else {
                 ctx.fillStyle = 'rgba(50, 50, 50, 0.1)';
               }
