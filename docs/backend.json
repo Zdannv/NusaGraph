@@ -1,0 +1,207 @@
+{
+  "entities": {
+    "KnowledgeGraphNode": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "KnowledgeGraphNode",
+      "type": "object",
+      "description": "Represents an individual entity or concept within the cultural knowledge graph, such as a historical figure, a place, or an art form.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the KnowledgeGraphNode entity."
+        },
+        "name": {
+          "type": "string",
+          "description": "The common name or title of the cultural entity."
+        },
+        "description": {
+          "type": "string",
+          "description": "A detailed summary or description of the cultural entity, potentially AI-generated."
+        },
+        "imageUrl": {
+          "type": "string",
+          "description": "URL to an image representing the cultural entity.",
+          "format": "uri"
+        },
+        "category": {
+          "type": "string",
+          "description": "The category or group this cultural entity belongs to (e.g., 'Seni', 'Sejarah', 'Geografi')."
+        },
+        "era": {
+          "type": "string",
+          "description": "The historical era or period associated with the cultural entity."
+        },
+        "location": {
+          "type": "string",
+          "description": "The geographical location primarily associated with the cultural entity."
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "description",
+        "imageUrl",
+        "category",
+        "era",
+        "location"
+      ]
+    },
+    "KnowledgeGraphRelationship": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "KnowledgeGraphRelationship",
+      "type": "object",
+      "description": "Defines a directed connection or relationship between two KnowledgeGraphNode entities.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the KnowledgeGraphRelationship entity."
+        },
+        "sourceNodeId": {
+          "type": "string",
+          "description": "Reference to the source KnowledgeGraphNode ID. (Relationship: KnowledgeGraphNode 1:N KnowledgeGraphRelationship)"
+        },
+        "targetNodeId": {
+          "type": "string",
+          "description": "Reference to the target KnowledgeGraphNode ID. (Relationship: KnowledgeGraphNode 1:N KnowledgeGraphRelationship)"
+        },
+        "label": {
+          "type": "string",
+          "description": "A brief label describing the nature of the relationship (e.g., 'BERASAL_DARI', 'TERKAIT_DENGAN')."
+        },
+        "explanation": {
+          "type": "string",
+          "description": "A detailed explanation providing context and information about the specific connection between the source and target nodes."
+        }
+      },
+      "required": [
+        "id",
+        "sourceNodeId",
+        "targetNodeId",
+        "label",
+        "explanation"
+      ]
+    },
+    "NusaQuestSession": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "NusaQuestSession",
+      "type": "object",
+      "description": "Represents an active or completed game session for the 'NusaQuest' pathfinder challenge mode.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the NusaQuestSession entity."
+        },
+        "userId": {
+          "type": "string",
+          "description": "Reference to the external User ID who initiated this quest session. (Relationship: User 1:N NusaQuestSession)"
+        },
+        "startNodeId": {
+          "type": "string",
+          "description": "Reference to the KnowledgeGraphNode ID chosen as the starting point for this quest. (Relationship: KnowledgeGraphNode 1:N NusaQuestSession)"
+        },
+        "targetNodeId": {
+          "type": "string",
+          "description": "Reference to the KnowledgeGraphNode ID chosen as the target destination for this quest. (Relationship: KnowledgeGraphNode 1:N NusaQuestSession)"
+        },
+        "currentEnergy": {
+          "type": "number",
+          "description": "The remaining 'Exploration Energy' for the quest, typically represented as a number of attempts or steps allowed."
+        },
+        "pathTakenNodeIds": {
+          "type": "array",
+          "description": "An ordered list of KnowledgeGraphNode IDs representing the path successfully traversed by the user during the quest. (Relationship: KnowledgeGraphNode N:N NusaQuestSession via path)",
+          "items": {
+            "type": "string"
+          }
+        },
+        "status": {
+          "type": "string",
+          "description": "The current status of the quest session (e.g., 'active', 'completed', 'failed')."
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "Timestamp indicating when the quest session was created or started.",
+          "format": "date-time"
+        },
+        "completedAt": {
+          "type": "string",
+          "description": "Timestamp indicating when the quest session was completed or failed. This field is null if the quest is still active.",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "userId",
+        "startNodeId",
+        "targetNodeId",
+        "currentEnergy",
+        "pathTakenNodeIds",
+        "status",
+        "createdAt"
+      ]
+    }
+  },
+  "auth": {
+    "providers": [
+      "password",
+      "anonymous"
+    ]
+  },
+  "firestore": {
+    "structure": [
+      {
+        "path": "/knowledgeGraphNodes/{nodeId}",
+        "definition": {
+          "entityName": "KnowledgeGraphNode",
+          "schema": {
+            "$ref": "#/backend/entities/KnowledgeGraphNode"
+          },
+          "description": "Public collection for all cultural knowledge graph nodes. Accessible by all users for reading. Includes core metadata and descriptions.",
+          "params": [
+            {
+              "name": "nodeId",
+              "description": "Unique identifier for a KnowledgeGraphNode."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/knowledgeGraphRelationships/{relationshipId}",
+        "definition": {
+          "entityName": "KnowledgeGraphRelationship",
+          "schema": {
+            "$ref": "#/backend/entities/KnowledgeGraphRelationship"
+          },
+          "description": "Public collection for relationships between cultural knowledge graph nodes. Accessible by all users for reading. Links nodes and provides explanation of their connection.",
+          "params": [
+            {
+              "name": "relationshipId",
+              "description": "Unique identifier for a KnowledgeGraphRelationship."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/users/{userId}/nusaQuestSessions/{sessionId}",
+        "definition": {
+          "entityName": "NusaQuestSession",
+          "schema": {
+            "$ref": "#/backend/entities/NusaQuestSession"
+          },
+          "description": "Subcollection storing individual NusaQuest game sessions, private to each user. Authorization relies on the path's userId matching request.auth.uid. The document also includes the 'userId' field for explicit ownership and authorization independence.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique ID of the user who owns this quest session."
+            },
+            {
+              "name": "sessionId",
+              "description": "Unique identifier for a NusaQuest game session."
+            }
+          ]
+        }
+      }
+    ],
+    "reasoning": "The Firestore structure is designed following the core principles of Authorization Independence, Structural Segregation, and predictable Access Modeling to ensure security, scalability, and debuggability. \n\n**Authorization Independence (CRITICAL):**\n*   For `knowledgeGraphNodes` and `knowledgeGraphRelationships`, these collections are designated as public/globally readable. This means no authorization context is required within the documents themselves for read operations, effectively eliminating any need for `get()` calls in security rules for access control. Write operations (e.g., by administrators) would be governed by a separate, independent `roles_admin/{uid}` collection, ensuring these documents remain self-contained for their primary read-access pattern.\n*   For `nusaQuestSessions`, each session document resides in a subcollection under a specific user: `/users/{userId}/nusaQuestSessions/{sessionId}`. The `userId` in the document path (e.g., `match /users/{userId}/nusaQuestSessions/{sessionId}`) is directly compared against `request.auth.uid`. Furthermore, the `NusaQuestSession` entity itself includes a `userId` field. This denormalization (owning `userId` in both path and document) makes the authorization for individual session documents entirely self-contained. Security rules can check `request.auth.uid == userId` from the path wildcard directly, without needing to perform a `get()` operation on a parent `user` document or any other document, thus preserving atomic write capabilities and simplifying rules.\n\n**Querying for Authorization Purposes (QAPs - Rules are not Filters):**\n*   **Public Collections (`/knowledgeGraphNodes`, `/knowledgeGraphRelationships`):** These collections are intended for public read access. Their homogeneous security posture (all documents are publicly readable) inherently supports QAPs. `list` queries can retrieve all documents (or filtered subsets based on non-security criteria like `category`, `era`, `location`) without security rules needing to filter out unauthorized documents. The rules simply grant read access to the entire collection.\n*   **User-Owned Subcollections (`/users/{userId}/nusaQuestSessions`):** By nesting `nusaQuestSessions` under `/users/{userId}`, `list` operations are naturally QAP-compliant. A user can only query for their own sessions (e.g., `db.collection('users').doc(request.auth.uid).collection('nusaQuestSessions').get()`). The security rule `match /users/{userId}/nusaQuestSessions/{sessionId}` will ensure that `{userId}` in the path matches `request.auth.uid` for any read or write operation, preventing users from listing or accessing other users' sessions. This structural segregation guarantees that all documents returned by such a query are authorized for the requesting user."
+  }
+}

@@ -1,0 +1,86 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    /**
+     * CORE PHILOSOPHY:
+     * This ruleset implements a hybrid security model designed for a cultural knowledge exploration app. 
+     * 1. Public Read Access: The Knowledge Graph (Nodes and Relationships) is globally accessible to allow 
+     *    all users (including anonymous ones) to explore cultural heritage without friction.
+     * 2. Strict User Ownership: Personal data, specifically 'NusaQuest' game sessions, is strictly siloed 
+     *    under the user's own path. Access is granted only if the authenticated user's UID matches the path.
+     * 3. Relational Integrity: For user-owned data, we enforce that the internal 'userId' field matches 
+     *    the document path to ensure data consistency and prevent cross-user data injection.
+     * 4. Prototyping Flexibility: While authorization is strictly enforced, the specific data schema 
+     *    (fields like 'description', 'imageUrl', etc.) is not validated to allow for rapid UI/UX iteration.
+     */
+
+    // --- Helper Functions ---
+
+    /** @description Checks if the request is from an authenticated user. */
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    /** @description Checks if the authenticated user's UID matches the provided userId. */
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    /** @description Verifies ownership and ensures the document exists for state-changing operations. */
+    function isExistingOwner(userId) {
+      return resource != null && isOwner(userId);
+    }
+
+    // --- Collection Rules ---
+
+    /**
+     * @description Public collection for cultural knowledge graph nodes (historical figures, places, etc.).
+     * @path /knowledgeGraphNodes/{nodeId}
+     * @allow get (all), list (all)
+     * @deny create, update, delete (all users - managed via admin/backend only)
+     * @principle Public consumption with restricted management.
+     */
+    match /knowledgeGraphNodes/{nodeId} {
+      allow get, list: if true;
+      
+      // CRITICAL: Cannot implement owner-only writes. The 'KnowledgeGraphNode' entity 
+      // is a static knowledge base and lacks an 'ownerId' or 'authorId' field.
+      allow create, update, delete: if false; // TODO: Implement admin-role check if editor access is required.
+    }
+
+    /**
+     * @description Public collection defining relationships between cultural nodes.
+     * @path /knowledgeGraphRelationships/{relationshipId}
+     * @allow get (all), list (all)
+     * @deny create, update, delete (all users - managed via admin/backend only)
+     * @principle Links nodes and provides explanations; available to all for the exploration experience.
+     */
+    match /knowledgeGraphRelationships/{relationshipId} {
+      allow get, list: if true;
+      
+      // CRITICAL: Cannot implement owner-only writes. The 'KnowledgeGraphRelationship' entity 
+      // is missing an ownership field.
+      allow create, update, delete: if false; // TODO: Implement admin-role check if editor access is required.
+    }
+
+    /**
+     * @description Private subcollection for user game sessions.
+     * @path /users/{userId}/nusaQuestSessions/{sessionId}
+     * @allow create (owner + path consistency), get/list/update/delete (owner only)
+     * @deny access by any other user.
+     * @principle Ownership-based access with relational integrity validation between path and document data.
+     */
+    match /users/{userId}/nusaQuestSessions/{sessionId} {
+      allow get, list: if isOwner(userId);
+      
+      // On create, ensure the user is who they say they are and the internal userId matches the path.
+      allow create: if isOwner(userId) && request.resource.data.userId == userId;
+      
+      // On update, ensure ownership and prevent the session from being transferred to another user.
+      allow update: if isExistingOwner(userId) && request.resource.data.userId == resource.data.userId;
+      
+      allow delete: if isExistingOwner(userId);
+    }
+  }
+}
