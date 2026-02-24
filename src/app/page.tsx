@@ -2,7 +2,6 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Search, 
   Settings, 
@@ -11,16 +10,13 @@ import {
   History, 
   MapPin,
   Mountain,
-  Zap,
-  BookOpen,
-  X,
-  Target,
   ChevronRight
 } from 'lucide-react';
 
 import { GraphView } from '@/components/GraphView';
+import { ContextualSidebar } from '@/components/ContextualSidebar';
+import { NusaQuestDashboard } from '@/components/NusaQuestDashboard';
 import { mockNodes, mockLinks, Node, Link } from '@/data/mockGraph';
-import { BatteryIndicator } from '@/components/ui/battery-indicator';
 import { 
   Accordion, 
   AccordionContent, 
@@ -48,7 +44,7 @@ export default function NusaGraph() {
   const [questCurrentNode, setQuestCurrentNode] = useState<Node | null>(null);
   const [questPath, setQuestPath] = useState<Node[]>([]);
   const [visibleNodes, setVisibleNodes] = useState<Set<string>>(new Set());
-  const [isJournalVisible, setIsJournalVisible] = useState(true);
+  const [isJournalVisible, setIsJournalVisible] = useState(false);
 
   useEffect(() => {
     if (mode === 'challenge') {
@@ -58,6 +54,7 @@ export default function NusaGraph() {
       setSelectedNode(null);
       setSelectedLink(null);
       setQuestPath([]);
+      setIsJournalVisible(false);
     }
   }, [mode]);
 
@@ -169,7 +166,7 @@ export default function NusaGraph() {
   const closeRightPanel = () => {
     setSelectedNode(null);
     setSelectedLink(null);
-    setIsJournalVisible(false);
+    if (mode === 'challenge') setIsJournalVisible(false);
   };
 
   return (
@@ -218,13 +215,13 @@ export default function NusaGraph() {
 
       <div className="flex flex-1 overflow-hidden relative">
         {/* Left Sidebar */}
-        <aside className="w-60 bg-[#1a1815] border-r border-amber-600/20 p-5 z-30 overflow-y-auto batik-overlay shrink-0">
+        <aside className="w-60 md:w-64 bg-[#1a1815] border-r border-amber-600/20 p-5 z-30 overflow-y-auto batik-overlay shrink-0">
           {mode === 'exploration' ? (
             <div className="space-y-6">
               <h2 className="font-headline text-lg text-amber-500 mb-4 border-b border-amber-600/20 pb-2">Filter Budaya</h2>
               <Accordion type="single" collapsible className="w-full">
                 <AccordionItem value="era" className="border-amber-600/10">
-                  <AccordionTrigger className="text-sm text-amber-100 hover:text-amber-500 py-3">
+                  <AccordionTrigger className="text-sm text-stone-200 hover:text-amber-500 py-3">
                     <div className="flex items-center gap-2">
                       <History className="w-4 h-4" />
                       <span>Era Sejarah</span>
@@ -232,7 +229,7 @@ export default function NusaGraph() {
                   </AccordionTrigger>
                   <AccordionContent className="space-y-1.5 pt-1">
                     {['Zaman Kuno', 'Kerajaan Hindu-Buddha', 'Kesultanan Islam', 'Masa Kolonial', 'Modern'].map(era => (
-                      <label key={era} className="flex items-center gap-2 text-xs text-muted-foreground hover:text-amber-400 cursor-pointer p-1">
+                      <label key={era} className="flex items-center gap-2 text-xs text-stone-400 hover:text-amber-400 cursor-pointer p-1">
                         <input type="checkbox" className="accent-amber-600 w-3 h-3" />
                         {era}
                       </label>
@@ -240,7 +237,7 @@ export default function NusaGraph() {
                   </AccordionContent>
                 </AccordionItem>
                 <AccordionItem value="location" className="border-amber-600/10">
-                  <AccordionTrigger className="text-sm text-amber-100 hover:text-amber-500 py-3">
+                  <AccordionTrigger className="text-sm text-stone-200 hover:text-amber-500 py-3">
                     <div className="flex items-center gap-2">
                       <MapPin className="w-4 h-4" />
                       <span>Lokasi</span>
@@ -248,7 +245,7 @@ export default function NusaGraph() {
                   </AccordionTrigger>
                   <AccordionContent className="space-y-1.5 pt-1">
                     {['Jawa', 'Sumatera', 'Bali', 'Sulawesi', 'Kalimantan', 'Maluku', 'Papua'].map(loc => (
-                      <label key={loc} className="flex items-center gap-2 text-xs text-muted-foreground hover:text-amber-400 cursor-pointer p-1">
+                      <label key={loc} className="flex items-center gap-2 text-xs text-stone-400 hover:text-amber-400 cursor-pointer p-1">
                         <input type="checkbox" className="accent-amber-600 w-3 h-3" />
                         {loc}
                       </label>
@@ -260,40 +257,21 @@ export default function NusaGraph() {
           ) : (
             <div className="space-y-6">
               <div className="p-4 bg-amber-600/5 border border-amber-600/20 rounded-xl terracotta-glow">
-                <h2 className="font-headline text-sm text-amber-500 mb-3 flex items-center gap-2 font-bold uppercase tracking-wider">
-                  <Target className="w-4 h-4 fill-amber-500" />
-                  MISI AKTIF
-                </h2>
-                <div className="space-y-4">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 bg-neutral-800 rounded-lg overflow-hidden border border-amber-600/30">
-                      <img src={questTarget?.image_url} alt={questTarget?.name} className="w-full h-full object-cover opacity-80" />
-                    </div>
-                    <div className="min-w-0">
-                      <div className="text-amber-100 font-bold text-xs truncate">{questTarget?.name}</div>
-                      <div className="text-[10px] text-amber-600 uppercase tracking-tighter">{questTarget?.location}</div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="space-y-3 px-1">
-                <div className="flex items-center justify-between text-[10px] font-bold uppercase tracking-wider">
-                  <span className="text-amber-500/80">Energi</span>
-                  <span className="text-amber-500">{questEnergy}/5</span>
-                </div>
-                <BatteryIndicator energy={questEnergy} maxEnergy={5} />
+                 <h2 className="text-[10px] text-amber-500 font-bold uppercase tracking-[0.2em] mb-2">Instruksi Misi</h2>
+                 <p className="text-xs text-stone-300 leading-relaxed italic">
+                   Klik simpul (node) yang berhubungan dengan lokasi Anda saat ini untuk bergerak maju.
+                 </p>
               </div>
 
               <div className="pt-4 border-t border-amber-600/10">
                 <Button 
                   variant="outline" 
-                  className="w-full justify-between text-xs border-amber-600/20 text-amber-500 hover:bg-amber-600/10 h-9"
+                  className="w-full justify-between text-xs border-amber-600/20 text-amber-500 hover:bg-amber-600/10 h-10"
                   onClick={() => setIsJournalVisible(!isJournalVisible)}
                 >
                   <div className="flex items-center gap-2">
                     <History className="w-3.5 h-3.5" />
-                    Jurnal
+                    Jurnal Misi
                   </div>
                   <ChevronRight className={`w-3 h-3 transition-transform ${isJournalVisible ? 'rotate-90' : ''}`} />
                 </Button>
@@ -312,137 +290,27 @@ export default function NusaGraph() {
           />
           
           {mode === 'challenge' && (
-            <motion.div 
-              initial={{ opacity: 0, y: -20 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="absolute top-4 left-4 pointer-events-none z-40"
-            >
-              <div className="bg-black/80 backdrop-blur-md p-3 rounded-lg border border-amber-600/30 shadow-2xl">
-                <div className="text-[10px] text-amber-500 font-bold uppercase tracking-widest mb-0.5">Posisi Saat Ini</div>
-                <div className="text-md font-headline text-white font-bold">{questCurrentNode?.name}</div>
-              </div>
-            </motion.div>
+            <NusaQuestDashboard 
+              questTarget={questTarget}
+              questCurrentNode={questCurrentNode}
+              questEnergy={questEnergy}
+              questPath={questPath}
+              isJournalVisible={isJournalVisible}
+              onToggleJournal={() => setIsJournalVisible(!isJournalVisible)}
+              onCloseJournal={() => setIsJournalVisible(false)}
+            />
           )}
         </main>
 
         {/* Right Sidebar */}
-        <AnimatePresence mode="wait">
-          {(selectedNode || selectedLink || (mode === 'challenge' && questPath.length > 0 && isJournalVisible)) && (
-            <motion.aside 
-              initial={{ x: '100%' }}
-              animate={{ x: 0 }}
-              exit={{ x: '100%' }}
-              transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-              className="w-72 bg-[#1a1815] border-l border-amber-600/20 z-50 overflow-y-auto batik-overlay shrink-0 shadow-2xl flex flex-col"
-            >
-              <div className="p-4 flex justify-end z-[60] bg-[#1a1815]/95 backdrop-blur-sm sticky top-0 border-b border-amber-600/10">
-                <Button 
-                  onClick={closeRightPanel}
-                  variant="ghost" 
-                  size="icon"
-                  className="rounded-full hover:bg-amber-600/20 text-amber-500 w-8 h-8"
-                >
-                  <X className="w-4 h-4" />
-                </Button>
-              </div>
-
-              {mode === 'exploration' ? (
-                <div className="p-6 space-y-6">
-                  {selectedNode ? (
-                    <div className="space-y-6">
-                      <div className="aspect-[4/3] w-full rounded-xl overflow-hidden border border-amber-600/40 gold-glow">
-                        <img 
-                          src={selectedNode.image_url} 
-                          alt={selectedNode.name} 
-                          className="w-full h-full object-cover"
-                        />
-                      </div>
-                      
-                      <div className="space-y-1">
-                        <h2 className="text-xl font-headline text-amber-500 leading-tight">{selectedNode.name}</h2>
-                        <p className="text-[10px] text-amber-600 font-bold uppercase tracking-widest">{selectedNode.era} • {selectedNode.location}</p>
-                      </div>
-
-                      <div className="space-y-3">
-                        <div className="flex items-center gap-2 text-amber-200 border-b border-amber-600/10 pb-2">
-                          <BookOpen className="w-4 h-4" />
-                          <h3 className="font-headline text-md">Wawasan AI</h3>
-                        </div>
-                        {isLoadingAi ? (
-                          <div className="space-y-2 animate-pulse">
-                            <div className="h-3 bg-neutral-800 rounded w-full"></div>
-                            <div className="h-3 bg-neutral-800 rounded w-5/6"></div>
-                            <div className="h-3 bg-neutral-800 rounded w-4/6"></div>
-                          </div>
-                        ) : (
-                          <p className="text-muted-foreground leading-relaxed text-xs italic font-serif">
-                            {nodeSummary || selectedNode.description}
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                  ) : selectedLink ? (
-                    <div className="space-y-6">
-                      <div className="space-y-2">
-                        <div className="bg-amber-600/10 border border-amber-600/30 px-3 py-1 rounded-full text-[10px] text-amber-500 font-bold inline-block">
-                          {selectedLink.label}
-                        </div>
-                        <h2 className="text-lg font-headline text-amber-500">Hubungan Pengetahuan</h2>
-                      </div>
-
-                      <div className="p-5 bg-[#25211b] rounded-xl border border-amber-600/20 shadow-2xl relative overflow-hidden">
-                        <div className="absolute top-0 right-0 p-2 opacity-10">
-                          <BookOpen className="w-12 h-12 text-amber-500" />
-                        </div>
-                        <div className="space-y-4 relative z-10">
-                          <h3 className="text-[10px] font-bold uppercase tracking-widest text-amber-200/50">Manuskrip</h3>
-                          {isLoadingAi ? (
-                             <div className="space-y-2 animate-pulse">
-                              <div className="h-3 bg-neutral-800 rounded w-full"></div>
-                              <div className="h-3 bg-neutral-800 rounded w-5/6"></div>
-                            </div>
-                          ) : (
-                            <p className="text-amber-100/90 leading-relaxed text-xs font-serif italic">
-                              {linkExplanation || selectedLink.explanation}
-                            </p>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  ) : null}
-                </div>
-              ) : (
-                <div className="p-6 flex-1 flex flex-col">
-                  <h2 className="text-lg font-headline text-amber-500 border-b border-amber-600/20 pb-4 flex items-center gap-2">
-                    <History className="w-4 h-4" />
-                    Jurnal Perjalanan
-                  </h2>
-                  <div className="mt-6 relative flex-1">
-                    <div className="absolute left-3 top-0 bottom-0 w-px bg-amber-600/20"></div>
-                    <div className="space-y-5">
-                      {questPath.map((node, i) => (
-                        <motion.div 
-                          key={i} 
-                          initial={{ opacity: 0, x: 10 }}
-                          animate={{ opacity: 1, x: 0 }}
-                          className="flex gap-4 relative pl-1"
-                        >
-                          <div className={`w-5 h-5 rounded-full flex items-center justify-center z-10 border shrink-0 ${i === questPath.length - 1 ? 'bg-amber-600 border-amber-400 gold-glow scale-110' : 'bg-neutral-900 border-amber-600/30'}`}>
-                            {i === questPath.length - 1 ? <Zap className="w-2.5 h-2.5 text-black fill-black" /> : <div className="w-1 h-1 rounded-full bg-amber-600/40"></div>}
-                          </div>
-                          <div className="min-w-0">
-                            <div className={`text-xs font-bold truncate ${i === questPath.length - 1 ? 'text-amber-400' : 'text-amber-100/60'}`}>{node.name}</div>
-                            <div className="text-[9px] text-muted-foreground uppercase tracking-tighter">{node.location}</div>
-                          </div>
-                        </motion.div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              )}
-            </motion.aside>
-          )}
-        </AnimatePresence>
+        <ContextualSidebar 
+          selectedNode={selectedNode}
+          selectedLink={selectedLink}
+          isLoadingAi={isLoadingAi}
+          nodeSummary={nodeSummary}
+          linkExplanation={linkExplanation}
+          onClose={closeRightPanel}
+        />
       </div>
     </div>
   );
