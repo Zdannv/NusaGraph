@@ -37,6 +37,10 @@ export default function NusaGraph() {
   const [nodeSummary, setNodeSummary] = useState<string | null>(null);
   const [linkExplanation, setLinkExplanation] = useState<string | null>(null);
   const [isLoadingAi, setIsLoadingAi] = useState(false);
+  
+  // Navigation & Focus Features
+  const [navigationHistory, setNavigationHistory] = useState<Node[]>([]);
+  const [focusNodeId, setFocusNodeId] = useState<string | null>(null);
 
   // Quest State
   const [questEnergy, setQuestEnergy] = useState(5);
@@ -55,6 +59,8 @@ export default function NusaGraph() {
       setSelectedLink(null);
       setQuestPath([]);
       setIsJournalVisible(false);
+      setNavigationHistory([]);
+      setFocusNodeId(null);
     }
   }, [mode]);
 
@@ -82,26 +88,38 @@ export default function NusaGraph() {
     setVisibleNodes(initialVisible);
   };
 
+  const loadNodeData = async (node: Node) => {
+    setSelectedLink(null);
+    setSelectedNode(node);
+    setIsLoadingAi(true);
+    setNodeSummary(null);
+    
+    // Update History
+    setNavigationHistory(prev => {
+      // Don't add if it's already the last one
+      if (prev.length > 0 && prev[prev.length - 1].id === node.id) return prev;
+      return [...prev, node];
+    });
+
+    try {
+      const result = await summarizeNode({
+        name: node.name,
+        description: node.description,
+        era: node.era,
+        location: node.location,
+        group: node.group
+      });
+      setNodeSummary(result.summary);
+    } catch (err) {
+      setNodeSummary(node.description);
+    } finally {
+      setIsLoadingAi(false);
+    }
+  };
+
   const handleNodeClick = async (node: any) => {
     if (mode === 'exploration') {
-      setSelectedLink(null);
-      setSelectedNode(node);
-      setIsLoadingAi(true);
-      setNodeSummary(null);
-      try {
-        const result = await summarizeNode({
-          name: node.name,
-          description: node.description,
-          era: node.era,
-          location: node.location,
-          group: node.group
-        });
-        setNodeSummary(result.summary);
-      } catch (err) {
-        setNodeSummary(node.description);
-      } finally {
-        setIsLoadingAi(false);
-      }
+      loadNodeData(node);
     } else {
       if (!questCurrentNode || !questTarget || questEnergy <= 0) return;
 
@@ -145,6 +163,7 @@ export default function NusaGraph() {
       setSelectedLink(link);
       setIsLoadingAi(true);
       setLinkExplanation(null);
+      setFocusNodeId(null); // Reset focus when clicking a link
       try {
         const sourceName = typeof link.source === 'object' ? link.source.name : mockNodes.find(n => n.id === link.source)?.name || link.source;
         const targetName = typeof link.target === 'object' ? link.target.name : mockNodes.find(n => n.id === link.target)?.name || link.target;
@@ -163,9 +182,19 @@ export default function NusaGraph() {
     }
   };
 
+  const handleBreadcrumbClick = (node: Node) => {
+    // Navigate back in history
+    const index = navigationHistory.findIndex(n => n.id === node.id);
+    if (index !== -1) {
+      setNavigationHistory(navigationHistory.slice(0, index + 1));
+      loadNodeData(node);
+    }
+  };
+
   const closeRightPanel = () => {
     setSelectedNode(null);
     setSelectedLink(null);
+    setFocusNodeId(null);
     if (mode === 'challenge') setIsJournalVisible(false);
   };
 
@@ -287,6 +316,7 @@ export default function NusaGraph() {
             onNodeClick={handleNodeClick}
             onLinkClick={handleLinkClick}
             visibleNodes={mode === 'challenge' ? visibleNodes : undefined}
+            focusNodeId={focusNodeId}
           />
           
           {mode === 'challenge' && (
@@ -310,6 +340,10 @@ export default function NusaGraph() {
           nodeSummary={nodeSummary}
           linkExplanation={linkExplanation}
           onClose={closeRightPanel}
+          navigationHistory={navigationHistory}
+          onBreadcrumbClick={handleBreadcrumbClick}
+          focusNodeId={focusNodeId}
+          onToggleFocus={(nodeId) => setFocusNodeId(focusNodeId === nodeId ? null : nodeId)}
         />
       </div>
     </div>
