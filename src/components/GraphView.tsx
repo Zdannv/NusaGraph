@@ -32,6 +32,7 @@ export function GraphView({ data, onNodeClick, onLinkClick, visibleNodes, focusN
   const [isLegendOpen, setIsLegendOpen] = useState(true);
   const [hoverNode, setHoverNode] = useState<any>(null);
 
+  // Resize observer to handle container size
   useEffect(() => {
     if (!containerRef.current) return;
 
@@ -45,16 +46,18 @@ export function GraphView({ data, onNodeClick, onLinkClick, visibleNodes, focusN
     });
 
     resizeObserver.observe(containerRef.current);
-
-    // Konfigurasi gaya simulasi untuk penyebaran yang lebih baik
-    if (fgRef.current) {
-      // Meningkatkan gaya tolak-menolak (repulsion) agar simpul tidak menumpuk
-      fgRef.current.d3Force('charge').strength(-500); 
-      // Mengatur jarak link agar lebih lega
-      fgRef.current.d3Force('link').distance(100); 
-    }
-
     return () => resizeObserver.disconnect();
+  }, []);
+
+  // Stabilize simulation once graph is loaded
+  useEffect(() => {
+    if (fgRef.current) {
+      // D3 Forces optimization
+      const fg = fgRef.current;
+      fg.d3Force('charge').strength(-300); // Stable repulsion
+      fg.d3Force('link').distance(120);    // Comfortable spacing
+      fg.d3VelocityDecay(0.3);              // Smooth movement stop
+    }
   }, [data]);
 
   const filteredNodes = useMemo(() => {
@@ -154,24 +157,30 @@ export function GraphView({ data, onNodeClick, onLinkClick, visibleNodes, focusN
             ctx.beginPath();
             ctx.arc(node.x, node.y, radius, 0, 2 * Math.PI, false);
             
+            // Reduced shadow usage for better performance and stability
             if (focusNodeId) {
               if (isFocused) {
                 ctx.fillStyle = baseColor;
-                ctx.shadowBlur = isTarget ? 20 : 10;
-                ctx.shadowColor = baseColor;
+                if (isTarget) {
+                    ctx.shadowBlur = 15;
+                    ctx.shadowColor = baseColor;
+                }
               } else {
                 ctx.fillStyle = 'rgba(50, 50, 50, 0.1)';
-                ctx.shadowBlur = 0;
               }
             } else {
               ctx.fillStyle = isHovered ? '#fff' : baseColor;
-              ctx.shadowBlur = isHovered ? 15 : 5;
-              ctx.shadowColor = isHovered ? '#fff' : baseColor;
+              if (isHovered) {
+                ctx.shadowBlur = 10;
+                ctx.shadowColor = '#fff';
+              }
             }
             
             ctx.fill();
+            ctx.shadowBlur = 0; // Reset shadow immediately
             
-            const showLabel = globalScale > 2 || isFocused || isHovered || isTarget;
+            // Label visibility logic
+            const showLabel = globalScale > 1.5 || isFocused || isHovered || isTarget;
             
             if (showLabel) {
                 const label = node.name;
@@ -189,12 +198,12 @@ export function GraphView({ data, onNodeClick, onLinkClick, visibleNodes, focusN
                 
                 ctx.fillText(label, node.x, node.y + (radius + 10 / globalScale));
             }
-            
-            ctx.shadowBlur = 0; 
           }}
+          nodeCanvasObjectMode={() => 'replace'}
         />
       )}
 
+      {/* Navigation Controls */}
       <div className="absolute bottom-6 right-6 flex flex-col gap-2 bg-stone-900/80 backdrop-blur-md p-1.5 rounded-full border border-amber-600/30 shadow-xl z-50">
         <Button size="icon" variant="ghost" className="rounded-full hover:bg-amber-600/20 text-amber-500 w-10 h-10" onClick={handleZoomIn}>
           <ZoomIn className="w-5 h-5" />
@@ -208,6 +217,7 @@ export function GraphView({ data, onNodeClick, onLinkClick, visibleNodes, focusN
         </Button>
       </div>
 
+      {/* Legend */}
       <div className="absolute bottom-6 left-6 z-50">
         <div className="bg-stone-900/80 backdrop-blur-md rounded-xl border border-amber-600/30 shadow-xl overflow-hidden min-w-[140px]">
           <button 
