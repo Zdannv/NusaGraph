@@ -76,8 +76,9 @@ export function GraphView({ data, onNodeClick, onLinkClick, visibleNodes, focusN
     if (!focusNodeId) return new Set<string>();
     const neighbors = new Set<string>();
     data.links.forEach(link => {
-      const sId = typeof link.source === 'string' ? link.source : (link.source as any).id;
-      const tId = typeof link.target === 'string' ? link.target : (link.target as any).id;
+      const sId = typeof link.source === 'object' ? (link.source as any).id : link.source;
+      const tId = typeof link.target === 'object' ? (link.target as any).id : link.target;
+      
       if (sId === focusNodeId) neighbors.add(tId);
       if (tId === focusNodeId) neighbors.add(sId);
     });
@@ -96,56 +97,83 @@ export function GraphView({ data, onNodeClick, onLinkClick, visibleNodes, focusN
           nodeRelSize={6}
           linkColor={(link: any) => {
             if (!focusNodeId) return 'rgba(236, 173, 27, 0.4)';
-            const sId = typeof link.source === 'string' ? link.source : (link.source as any).id;
-            const tId = typeof link.target === 'string' ? link.target : (link.target as any).id;
+            const sId = typeof link.source === 'object' ? (link.source as any).id : link.source;
+            const tId = typeof link.target === 'object' ? (link.target as any).id : link.target;
+            
+            // Highlight connections to the focused node
             return (sId === focusNodeId || tId === focusNodeId) 
-              ? 'rgba(236, 173, 27, 0.8)' 
-              : 'rgba(50, 50, 50, 0.1)';
+              ? 'rgba(236, 173, 27, 0.9)' 
+              : 'rgba(50, 50, 50, 0.05)';
           }}
           linkWidth={(link: any) => {
              if (!focusNodeId) return 1.5;
-             const sId = typeof link.source === 'string' ? link.source : (link.source as any).id;
-             const tId = typeof link.target === 'string' ? link.target : (link.target as any).id;
-             return (sId === focusNodeId || tId === focusNodeId) ? 2.5 : 0.5;
+             const sId = typeof link.source === 'object' ? (link.source as any).id : link.source;
+             const tId = typeof link.target === 'object' ? (link.target as any).id : link.target;
+             return (sId === focusNodeId || tId === focusNodeId) ? 3 : 0.2;
           }}
-          linkDirectionalParticles={2}
+          linkDirectionalParticles={(link: any) => {
+            if (!focusNodeId) return 2;
+            const sId = typeof link.source === 'object' ? (link.source as any).id : link.source;
+            const tId = typeof link.target === 'object' ? (link.target as any).id : link.target;
+            return (sId === focusNodeId || tId === focusNodeId) ? 4 : 0;
+          }}
           linkDirectionalParticleSpeed={0.005}
           onNodeClick={onNodeClick}
           onLinkClick={onLinkClick}
           backgroundColor="#151310"
           nodeCanvasObject={(node: any, ctx: any, globalScale: number) => {
-            const isFocused = focusNodeId ? (node.id === focusNodeId || focusedNeighbors.has(node.id)) : true;
-            const opacity = isFocused ? 1 : 0.1;
+            const isTarget = focusNodeId === node.id;
+            const isNeighbor = focusedNeighbors.has(node.id);
+            const isFocused = focusNodeId ? (isTarget || isNeighbor) : true;
             
             const label = node.name;
-            const fontSize = 12 / globalScale;
-            ctx.font = `${fontSize}px Playfair Display`;
+            const fontSize = isTarget ? 16 / globalScale : 12 / globalScale;
+            ctx.font = `${isTarget ? 'bold' : 'normal'} ${fontSize}px Playfair Display`;
             
             // Draw node circle
+            const radius = isTarget ? 7 : 5;
             ctx.beginPath();
-            ctx.arc(node.x, node.y, 4, 0, 2 * Math.PI, false);
-            const baseColor = CATEGORY_COLORS[node.group] || '#9333ea';
-            ctx.fillStyle = isFocused ? baseColor : 'rgba(80, 80, 80, 0.1)';
-            ctx.fill();
+            ctx.arc(node.x, node.y, radius, 0, 2 * Math.PI, false);
             
-            // Subtle glow for active nodes
-            if (isFocused) {
-              ctx.shadowBlur = 10;
-              ctx.shadowColor = ctx.fillStyle;
+            const baseColor = CATEGORY_COLORS[node.group] || '#9333ea';
+            
+            if (focusNodeId) {
+              if (isFocused) {
+                ctx.fillStyle = baseColor;
+                // Stronger glow for focused elements
+                ctx.shadowBlur = isTarget ? 20 : 10;
+                ctx.shadowColor = baseColor;
+              } else {
+                ctx.fillStyle = 'rgba(50, 50, 50, 0.1)';
+                ctx.shadowBlur = 0;
+              }
+            } else {
+              ctx.fillStyle = baseColor;
+              ctx.shadowBlur = 5;
+              ctx.shadowColor = 'rgba(236, 173, 27, 0.2)';
             }
             
-            // Draw label
+            ctx.fill();
+            
+            // Draw label with dynamic opacity
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
-            ctx.fillStyle = isFocused ? 'white' : `rgba(150, 150, 150, ${opacity})`;
-            ctx.fillText(label, node.x, node.y + 10);
             
+            if (focusNodeId) {
+               ctx.fillStyle = isFocused ? (isTarget ? '#ECAD1B' : 'white') : 'rgba(100, 100, 100, 0.1)';
+            } else {
+               ctx.fillStyle = 'white';
+            }
+            
+            ctx.fillText(label, node.x, node.y + (radius + 8));
+            
+            // Clean up shadows for performance
             ctx.shadowBlur = 0; 
           }}
         />
       )}
 
-      {/* 1. Canvas Navigation Controls */}
+      {/* Canvas Navigation Controls */}
       <div className="absolute bottom-6 right-6 flex flex-col gap-2 bg-stone-900/80 backdrop-blur-md p-1.5 rounded-full border border-amber-600/30 shadow-xl z-50">
         <Button size="icon" variant="ghost" className="rounded-full hover:bg-amber-600/20 text-amber-500 w-10 h-10" onClick={handleZoomIn}>
           <ZoomIn className="w-5 h-5" />
@@ -159,7 +187,7 @@ export function GraphView({ data, onNodeClick, onLinkClick, visibleNodes, focusN
         </Button>
       </div>
 
-      {/* 2. Graph Legend */}
+      {/* Graph Legend */}
       <div className="absolute bottom-6 left-6 z-50">
         <div className="bg-stone-900/80 backdrop-blur-md rounded-xl border border-amber-600/30 shadow-xl overflow-hidden min-w-[140px]">
           <button 
