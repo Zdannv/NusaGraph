@@ -14,7 +14,8 @@ import {
   Zap,
   BookOpen,
   X,
-  Target
+  Target,
+  ChevronRight
 } from 'lucide-react';
 
 import { GraphView } from '@/components/GraphView';
@@ -47,6 +48,7 @@ export default function NusaGraph() {
   const [questCurrentNode, setQuestCurrentNode] = useState<Node | null>(null);
   const [questPath, setQuestPath] = useState<Node[]>([]);
   const [visibleNodes, setVisibleNodes] = useState<Set<string>>(new Set());
+  const [isJournalVisible, setIsJournalVisible] = useState(true);
 
   useEffect(() => {
     if (mode === 'challenge') {
@@ -70,6 +72,7 @@ export default function NusaGraph() {
     setQuestTarget(target);
     setQuestEnergy(5);
     setQuestPath([start]);
+    setIsJournalVisible(true);
     
     const initialVisible = new Set<string>();
     initialVisible.add(start.id);
@@ -123,6 +126,7 @@ export default function NusaGraph() {
         setVisibleNodes(newVisible);
         setQuestCurrentNode(node);
         setQuestPath([...questPath, node]);
+        setIsJournalVisible(true);
         
         if (node.id === questTarget.id) {
           alert('Selamat! Anda telah sampai di tujuan misi!');
@@ -160,6 +164,12 @@ export default function NusaGraph() {
         setIsLoadingAi(false);
       }
     }
+  };
+
+  const closeRightPanel = () => {
+    setSelectedNode(null);
+    setSelectedLink(null);
+    setIsJournalVisible(false);
   };
 
   return (
@@ -208,7 +218,7 @@ export default function NusaGraph() {
 
       <div className="flex flex-1 overflow-hidden relative">
         {/* Left Sidebar */}
-        <aside className="w-64 bg-[#1a1815] border-r border-amber-600/20 p-5 z-30 overflow-y-auto batik-overlay shrink-0">
+        <aside className="w-60 bg-[#1a1815] border-r border-amber-600/20 p-5 z-30 overflow-y-auto batik-overlay shrink-0">
           {mode === 'exploration' ? (
             <div className="space-y-6">
               <h2 className="font-headline text-lg text-amber-500 mb-4 border-b border-amber-600/20 pb-2">Filter Budaya</h2>
@@ -250,7 +260,7 @@ export default function NusaGraph() {
           ) : (
             <div className="space-y-6">
               <div className="p-4 bg-amber-600/5 border border-amber-600/20 rounded-xl terracotta-glow">
-                <h2 className="font-headline text-md text-amber-500 mb-3 flex items-center gap-2 font-bold">
+                <h2 className="font-headline text-sm text-amber-500 mb-3 flex items-center gap-2 font-bold uppercase tracking-wider">
                   <Target className="w-4 h-4 fill-amber-500" />
                   MISI AKTIF
                 </h2>
@@ -260,7 +270,7 @@ export default function NusaGraph() {
                       <img src={questTarget?.image_url} alt={questTarget?.name} className="w-full h-full object-cover opacity-80" />
                     </div>
                     <div className="min-w-0">
-                      <div className="text-amber-100 font-bold text-sm truncate">{questTarget?.name}</div>
+                      <div className="text-amber-100 font-bold text-xs truncate">{questTarget?.name}</div>
                       <div className="text-[10px] text-amber-600 uppercase tracking-tighter">{questTarget?.location}</div>
                     </div>
                   </div>
@@ -268,11 +278,25 @@ export default function NusaGraph() {
               </div>
 
               <div className="space-y-3 px-1">
-                <div className="flex items-center justify-between text-xs font-bold uppercase tracking-wider">
+                <div className="flex items-center justify-between text-[10px] font-bold uppercase tracking-wider">
                   <span className="text-amber-500/80">Energi</span>
                   <span className="text-amber-500">{questEnergy}/5</span>
                 </div>
                 <BatteryIndicator energy={questEnergy} maxEnergy={5} />
+              </div>
+
+              <div className="pt-4 border-t border-amber-600/10">
+                <Button 
+                  variant="outline" 
+                  className="w-full justify-between text-xs border-amber-600/20 text-amber-500 hover:bg-amber-600/10 h-9"
+                  onClick={() => setIsJournalVisible(!isJournalVisible)}
+                >
+                  <div className="flex items-center gap-2">
+                    <History className="w-3.5 h-3.5" />
+                    Jurnal
+                  </div>
+                  <ChevronRight className={`w-3 h-3 transition-transform ${isJournalVisible ? 'rotate-90' : ''}`} />
+                </Button>
               </div>
             </div>
           )}
@@ -291,11 +315,11 @@ export default function NusaGraph() {
             <motion.div 
               initial={{ opacity: 0, y: -20 }}
               animate={{ opacity: 1, y: 0 }}
-              className="absolute top-4 left-4 pointer-events-none z-20"
+              className="absolute top-4 left-4 pointer-events-none z-40"
             >
               <div className="bg-black/80 backdrop-blur-md p-3 rounded-lg border border-amber-600/30 shadow-2xl">
                 <div className="text-[10px] text-amber-500 font-bold uppercase tracking-widest mb-0.5">Posisi Saat Ini</div>
-                <div className="text-lg font-headline text-white font-bold">{questCurrentNode?.name}</div>
+                <div className="text-md font-headline text-white font-bold">{questCurrentNode?.name}</div>
               </div>
             </motion.div>
           )}
@@ -303,17 +327,17 @@ export default function NusaGraph() {
 
         {/* Right Sidebar */}
         <AnimatePresence mode="wait">
-          {(selectedNode || selectedLink || (mode === 'challenge' && questPath.length > 0)) && (
+          {(selectedNode || selectedLink || (mode === 'challenge' && questPath.length > 0 && isJournalVisible)) && (
             <motion.aside 
               initial={{ x: '100%' }}
               animate={{ x: 0 }}
               exit={{ x: '100%' }}
               transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-              className="w-80 bg-[#1a1815] border-l border-amber-600/20 z-40 overflow-y-auto batik-overlay shrink-0 shadow-2xl flex flex-col"
+              className="w-72 bg-[#1a1815] border-l border-amber-600/20 z-50 overflow-y-auto batik-overlay shrink-0 shadow-2xl flex flex-col"
             >
-              <div className="p-4 flex justify-end z-50 bg-[#1a1815]/95 backdrop-blur-sm sticky top-0 border-b border-amber-600/10">
+              <div className="p-4 flex justify-end z-[60] bg-[#1a1815]/95 backdrop-blur-sm sticky top-0 border-b border-amber-600/10">
                 <Button 
-                  onClick={() => { setSelectedNode(null); setSelectedLink(null); }}
+                  onClick={closeRightPanel}
                   variant="ghost" 
                   size="icon"
                   className="rounded-full hover:bg-amber-600/20 text-amber-500 w-8 h-8"
@@ -335,7 +359,7 @@ export default function NusaGraph() {
                       </div>
                       
                       <div className="space-y-1">
-                        <h2 className="text-2xl font-headline text-amber-500 leading-tight">{selectedNode.name}</h2>
+                        <h2 className="text-xl font-headline text-amber-500 leading-tight">{selectedNode.name}</h2>
                         <p className="text-[10px] text-amber-600 font-bold uppercase tracking-widest">{selectedNode.era} • {selectedNode.location}</p>
                       </div>
 
@@ -351,7 +375,7 @@ export default function NusaGraph() {
                             <div className="h-3 bg-neutral-800 rounded w-4/6"></div>
                           </div>
                         ) : (
-                          <p className="text-muted-foreground leading-relaxed text-sm italic font-serif">
+                          <p className="text-muted-foreground leading-relaxed text-xs italic font-serif">
                             {nodeSummary || selectedNode.description}
                           </p>
                         )}
@@ -363,7 +387,7 @@ export default function NusaGraph() {
                         <div className="bg-amber-600/10 border border-amber-600/30 px-3 py-1 rounded-full text-[10px] text-amber-500 font-bold inline-block">
                           {selectedLink.label}
                         </div>
-                        <h2 className="text-xl font-headline text-amber-500">Hubungan Pengetahuan</h2>
+                        <h2 className="text-lg font-headline text-amber-500">Hubungan Pengetahuan</h2>
                       </div>
 
                       <div className="p-5 bg-[#25211b] rounded-xl border border-amber-600/20 shadow-2xl relative overflow-hidden">
@@ -371,14 +395,14 @@ export default function NusaGraph() {
                           <BookOpen className="w-12 h-12 text-amber-500" />
                         </div>
                         <div className="space-y-4 relative z-10">
-                          <h3 className="text-sm font-bold uppercase tracking-widest text-amber-200/50">Manuskrip</h3>
+                          <h3 className="text-[10px] font-bold uppercase tracking-widest text-amber-200/50">Manuskrip</h3>
                           {isLoadingAi ? (
                              <div className="space-y-2 animate-pulse">
                               <div className="h-3 bg-neutral-800 rounded w-full"></div>
                               <div className="h-3 bg-neutral-800 rounded w-5/6"></div>
                             </div>
                           ) : (
-                            <p className="text-amber-100/90 leading-relaxed text-sm font-serif italic">
+                            <p className="text-amber-100/90 leading-relaxed text-xs font-serif italic">
                               {linkExplanation || selectedLink.explanation}
                             </p>
                           )}
@@ -389,8 +413,8 @@ export default function NusaGraph() {
                 </div>
               ) : (
                 <div className="p-6 flex-1 flex flex-col">
-                  <h2 className="text-xl font-headline text-amber-500 border-b border-amber-600/20 pb-4 flex items-center gap-2">
-                    <History className="w-5 h-5" />
+                  <h2 className="text-lg font-headline text-amber-500 border-b border-amber-600/20 pb-4 flex items-center gap-2">
+                    <History className="w-4 h-4" />
                     Jurnal Perjalanan
                   </h2>
                   <div className="mt-6 relative flex-1">
@@ -401,14 +425,14 @@ export default function NusaGraph() {
                           key={i} 
                           initial={{ opacity: 0, x: 10 }}
                           animate={{ opacity: 1, x: 0 }}
-                          className="flex gap-5 relative pl-1"
+                          className="flex gap-4 relative pl-1"
                         >
-                          <div className={`w-6 h-6 rounded-full flex items-center justify-center z-10 border shrink-0 ${i === questPath.length - 1 ? 'bg-amber-600 border-amber-400 gold-glow scale-110' : 'bg-neutral-900 border-amber-600/30'}`}>
-                            {i === questPath.length - 1 ? <Zap className="w-3 h-3 text-black fill-black" /> : <div className="w-1.5 h-1.5 rounded-full bg-amber-600/40"></div>}
+                          <div className={`w-5 h-5 rounded-full flex items-center justify-center z-10 border shrink-0 ${i === questPath.length - 1 ? 'bg-amber-600 border-amber-400 gold-glow scale-110' : 'bg-neutral-900 border-amber-600/30'}`}>
+                            {i === questPath.length - 1 ? <Zap className="w-2.5 h-2.5 text-black fill-black" /> : <div className="w-1 h-1 rounded-full bg-amber-600/40"></div>}
                           </div>
                           <div className="min-w-0">
-                            <div className={`text-sm font-bold truncate ${i === questPath.length - 1 ? 'text-amber-400' : 'text-amber-100/60'}`}>{node.name}</div>
-                            <div className="text-[10px] text-muted-foreground uppercase tracking-tighter">{node.location}</div>
+                            <div className={`text-xs font-bold truncate ${i === questPath.length - 1 ? 'text-amber-400' : 'text-amber-100/60'}`}>{node.name}</div>
+                            <div className="text-[9px] text-muted-foreground uppercase tracking-tighter">{node.location}</div>
                           </div>
                         </motion.div>
                       ))}
