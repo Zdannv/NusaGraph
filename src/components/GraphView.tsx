@@ -14,8 +14,8 @@ interface GraphViewProps {
   data: { nodes: Node[]; links: Link[] };
   onNodeClick: (node: any) => void;
   onLinkClick: (link: any) => void;
-  visibleNodes?: Set<string>; // For Quest Mode "fog of war"
-  focusNodeId?: string | null; // For Isolate/Focus Mode
+  visibleNodes?: Set<string>; 
+  focusNodeId?: string | null; 
 }
 
 const CATEGORY_COLORS: Record<string, string> = {
@@ -30,6 +30,7 @@ export function GraphView({ data, onNodeClick, onLinkClick, visibleNodes, focusN
   const fgRef = useRef<any>();
   const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
   const [isLegendOpen, setIsLegendOpen] = useState(true);
+  const [hoverNode, setHoverNode] = useState<any>(null);
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -45,8 +46,15 @@ export function GraphView({ data, onNodeClick, onLinkClick, visibleNodes, focusN
 
     resizeObserver.observe(containerRef.current);
 
+    // Apply forces for better distribution
+    if (fgRef.current) {
+      fgRef.current.d3Force('charge').strength(-400); // More repulsion
+      fgRef.current.d3Force('collide', (d3: any) => d3.forceCollide(25)); // Prevent overlap
+      fgRef.current.d3Force('link').distance(80); // Increase distance
+    }
+
     return () => resizeObserver.disconnect();
-  }, []);
+  }, [data]);
 
   const filteredNodes = useMemo(() => {
     if (visibleNodes) return data.nodes.filter(n => visibleNodes.has(n.id));
@@ -63,15 +71,13 @@ export function GraphView({ data, onNodeClick, onLinkClick, visibleNodes, focusN
     return data.links;
   }, [data.links, visibleNodes]);
 
-  // Handle Canvas Controls
-  const handleZoomIn = () => fgRef.current?.zoom(fgRef.current.zoom() * 1.2, 400);
-  const handleZoomOut = () => fgRef.current?.zoom(fgRef.current.zoom() * 0.8, 400);
+  const handleZoomIn = () => fgRef.current?.zoom(fgRef.current.zoom() * 1.5, 400);
+  const handleZoomOut = () => fgRef.current?.zoom(fgRef.current.zoom() * 0.7, 400);
   const handleRecenter = () => {
     fgRef.current?.centerAt(0, 0, 800);
-    fgRef.current?.zoom(1, 800);
+    fgRef.current?.zoom(1.2, 800);
   };
 
-  // Focus Logic: Calculate neighbors of focused node
   const focusedNeighbors = useMemo(() => {
     if (!focusNodeId) return new Set<string>();
     const neighbors = new Set<string>();
@@ -93,31 +99,46 @@ export function GraphView({ data, onNodeClick, onLinkClick, visibleNodes, focusN
           graphData={{ nodes: filteredNodes, links: filteredLinks }}
           width={dimensions.width}
           height={dimensions.height}
-          nodeLabel="name"
           nodeRelSize={6}
+          onNodeHover={(node) => setHoverNode(node)}
           linkColor={(link: any) => {
-            if (!focusNodeId) return 'rgba(236, 173, 27, 0.4)';
             const sId = typeof link.source === 'object' ? (link.source as any).id : link.source;
             const tId = typeof link.target === 'object' ? (link.target as any).id : link.target;
             
-            // Highlight connections to the focused node
-            return (sId === focusNodeId || tId === focusNodeId) 
-              ? 'rgba(236, 173, 27, 0.9)' 
-              : 'rgba(50, 50, 50, 0.05)';
+            if (focusNodeId) {
+              return (sId === focusNodeId || tId === focusNodeId) 
+                ? 'rgba(236, 173, 27, 0.9)' 
+                : 'rgba(50, 50, 50, 0.05)';
+            }
+            
+            // Link highlighting on hover
+            if (hoverNode && (sId === hoverNode.id || tId === hoverNode.id)) {
+                return 'rgba(236, 173, 27, 0.8)';
+            }
+
+            return 'rgba(236, 173, 27, 0.2)';
           }}
           linkWidth={(link: any) => {
-             if (!focusNodeId) return 1.5;
              const sId = typeof link.source === 'object' ? (link.source as any).id : link.source;
              const tId = typeof link.target === 'object' ? (link.target as any).id : link.target;
-             return (sId === focusNodeId || tId === focusNodeId) ? 3 : 0.2;
+             
+             if (focusNodeId) {
+                return (sId === focusNodeId || tId === focusNodeId) ? 3 : 0.2;
+             }
+             if (hoverNode && (sId === hoverNode.id || tId === hoverNode.id)) {
+                 return 2;
+             }
+             return 1;
           }}
           linkDirectionalParticles={(link: any) => {
-            if (!focusNodeId) return 2;
             const sId = typeof link.source === 'object' ? (link.source as any).id : link.source;
             const tId = typeof link.target === 'object' ? (link.target as any).id : link.target;
-            return (sId === focusNodeId || tId === focusNodeId) ? 4 : 0;
+            if (focusNodeId) {
+                return (sId === focusNodeId || tId === focusNodeId) ? 4 : 0;
+            }
+            if (hoverNode && (sId === hoverNode.id || tId === hoverNode.id)) return 2;
+            return 0;
           }}
-          linkDirectionalParticleSpeed={0.005}
           onNodeClick={onNodeClick}
           onLinkClick={onLinkClick}
           backgroundColor="#151310"
@@ -125,22 +146,18 @@ export function GraphView({ data, onNodeClick, onLinkClick, visibleNodes, focusN
             const isTarget = focusNodeId === node.id;
             const isNeighbor = focusedNeighbors.has(node.id);
             const isFocused = focusNodeId ? (isTarget || isNeighbor) : true;
-            
-            const label = node.name;
-            const fontSize = isTarget ? 16 / globalScale : 12 / globalScale;
-            ctx.font = `${isTarget ? 'bold' : 'normal'} ${fontSize}px Playfair Display`;
-            
-            // Draw node circle
-            const radius = isTarget ? 7 : 5;
-            ctx.beginPath();
-            ctx.arc(node.x, node.y, radius, 0, 2 * Math.PI, false);
+            const isHovered = hoverNode?.id === node.id;
             
             const baseColor = CATEGORY_COLORS[node.group] || '#9333ea';
+            const radius = isTarget ? 8 : (isHovered ? 7 : 5);
+            
+            // Draw node circle
+            ctx.beginPath();
+            ctx.arc(node.x, node.y, radius, 0, 2 * Math.PI, false);
             
             if (focusNodeId) {
               if (isFocused) {
                 ctx.fillStyle = baseColor;
-                // Stronger glow for focused elements
                 ctx.shadowBlur = isTarget ? 20 : 10;
                 ctx.shadowColor = baseColor;
               } else {
@@ -148,32 +165,38 @@ export function GraphView({ data, onNodeClick, onLinkClick, visibleNodes, focusN
                 ctx.shadowBlur = 0;
               }
             } else {
-              ctx.fillStyle = baseColor;
-              ctx.shadowBlur = 5;
-              ctx.shadowColor = 'rgba(236, 173, 27, 0.2)';
+              ctx.fillStyle = isHovered ? '#fff' : baseColor;
+              ctx.shadowBlur = isHovered ? 15 : 5;
+              ctx.shadowColor = isHovered ? '#fff' : baseColor;
             }
             
             ctx.fill();
             
-            // Draw label with dynamic opacity
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
+            // Label decluttering: Only show labels if zoomed in OR focused/hovered
+            const showLabel = globalScale > 2 || isFocused || isHovered || isTarget;
             
-            if (focusNodeId) {
-               ctx.fillStyle = isFocused ? (isTarget ? '#ECAD1B' : 'white') : 'rgba(100, 100, 100, 0.1)';
-            } else {
-               ctx.fillStyle = 'white';
+            if (showLabel) {
+                const label = node.name;
+                const fontSize = (isTarget ? 14 : 11) / globalScale;
+                ctx.font = `${isTarget || isHovered ? 'bold' : 'normal'} ${fontSize}px Playfair Display`;
+                
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                
+                if (focusNodeId) {
+                   ctx.fillStyle = isFocused ? (isTarget ? '#ECAD1B' : 'white') : 'rgba(100, 100, 100, 0.05)';
+                } else {
+                   ctx.fillStyle = isHovered ? '#ECAD1B' : 'rgba(255, 255, 255, 0.8)';
+                }
+                
+                ctx.fillText(label, node.x, node.y + (radius + 10 / globalScale));
             }
             
-            ctx.fillText(label, node.x, node.y + (radius + 8));
-            
-            // Clean up shadows for performance
             ctx.shadowBlur = 0; 
           }}
         />
       )}
 
-      {/* Canvas Navigation Controls */}
       <div className="absolute bottom-6 right-6 flex flex-col gap-2 bg-stone-900/80 backdrop-blur-md p-1.5 rounded-full border border-amber-600/30 shadow-xl z-50">
         <Button size="icon" variant="ghost" className="rounded-full hover:bg-amber-600/20 text-amber-500 w-10 h-10" onClick={handleZoomIn}>
           <ZoomIn className="w-5 h-5" />
@@ -187,7 +210,6 @@ export function GraphView({ data, onNodeClick, onLinkClick, visibleNodes, focusN
         </Button>
       </div>
 
-      {/* Graph Legend */}
       <div className="absolute bottom-6 left-6 z-50">
         <div className="bg-stone-900/80 backdrop-blur-md rounded-xl border border-amber-600/30 shadow-xl overflow-hidden min-w-[140px]">
           <button 

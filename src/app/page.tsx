@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { 
   Search, 
   Settings, 
@@ -38,6 +38,10 @@ export default function NusaGraph() {
   const [linkExplanation, setLinkExplanation] = useState<string | null>(null);
   const [isLoadingAi, setIsLoadingAi] = useState(false);
   
+  // Filtering & Search
+  const [searchQuery, setSearchQuery] = useState('');
+  const [selectedCategories, setSelectedCategories] = useState<Set<string>>(new Set());
+  
   // Navigation & Focus Features
   const [navigationHistory, setNavigationHistory] = useState<Node[]>([]);
   const [focusNodeId, setFocusNodeId] = useState<string | null>(null);
@@ -63,6 +67,31 @@ export default function NusaGraph() {
       setFocusNodeId(null);
     }
   }, [mode]);
+
+  const filteredGraph = useMemo(() => {
+    if (mode === 'challenge') return { nodes: mockNodes, links: mockLinks };
+
+    let nodes = mockNodes.filter(node => {
+      const matchesSearch = node.name.toLowerCase().includes(searchQuery.toLowerCase());
+      const matchesCategory = selectedCategories.size === 0 || selectedCategories.has(node.group);
+      return matchesSearch && matchesCategory;
+    });
+
+    const nodeIds = new Set(nodes.map(n => n.id));
+    let links = mockLinks.filter(l => 
+      nodeIds.has(typeof l.source === 'string' ? l.source : (l.source as any).id) && 
+      nodeIds.has(typeof l.target === 'string' ? l.target : (l.target as any).id)
+    );
+
+    return { nodes, links };
+  }, [searchQuery, selectedCategories, mode]);
+
+  const toggleCategory = (category: string) => {
+    const newCats = new Set(selectedCategories);
+    if (newCats.has(category)) newCats.delete(category);
+    else newCats.add(category);
+    setSelectedCategories(newCats);
+  };
 
   const startNewQuest = () => {
     const start = mockNodes[Math.floor(Math.random() * mockNodes.length)];
@@ -94,9 +123,7 @@ export default function NusaGraph() {
     setIsLoadingAi(true);
     setNodeSummary(null);
     
-    // Update History
     setNavigationHistory(prev => {
-      // Don't add if it's already the last one
       if (prev.length > 0 && prev[prev.length - 1].id === node.id) return prev;
       return [...prev, node];
     });
@@ -163,7 +190,7 @@ export default function NusaGraph() {
       setSelectedLink(link);
       setIsLoadingAi(true);
       setLinkExplanation(null);
-      setFocusNodeId(null); // Reset focus when clicking a link
+      setFocusNodeId(null);
       try {
         const sourceName = typeof link.source === 'object' ? link.source.name : mockNodes.find(n => n.id === link.source)?.name || link.source;
         const targetName = typeof link.target === 'object' ? link.target.name : mockNodes.find(n => n.id === link.target)?.name || link.target;
@@ -183,7 +210,6 @@ export default function NusaGraph() {
   };
 
   const handleBreadcrumbClick = (node: Node) => {
-    // Navigate back in history
     const index = navigationHistory.findIndex(n => n.id === node.id);
     if (index !== -1) {
       setNavigationHistory(navigationHistory.slice(0, index + 1));
@@ -200,7 +226,6 @@ export default function NusaGraph() {
 
   return (
     <div className="flex flex-col h-screen bg-[#151310] text-foreground font-body overflow-hidden">
-      {/* Navbar */}
       <header className="h-16 border-b border-amber-600/30 flex items-center justify-between px-6 bg-[#1a1815] z-50 shrink-0">
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 bg-amber-600/20 rounded-full flex items-center justify-center border border-amber-600/50 gold-glow">
@@ -213,6 +238,8 @@ export default function NusaGraph() {
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground w-4 h-4" />
             <Input 
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Cari pusaka, sejarah, atau lokasi..." 
               className="pl-10 bg-neutral-900/50 border-neutral-800 focus:border-amber-600/50 h-9"
             />
@@ -243,12 +270,32 @@ export default function NusaGraph() {
       </header>
 
       <div className="flex flex-1 overflow-hidden relative">
-        {/* Left Sidebar */}
         <aside className="w-60 md:w-64 bg-[#1a1815] border-r border-amber-600/20 p-5 z-30 overflow-y-auto batik-overlay shrink-0">
           {mode === 'exploration' ? (
             <div className="space-y-6">
               <h2 className="font-headline text-lg text-amber-500 mb-4 border-b border-amber-600/20 pb-2">Filter Budaya</h2>
-              <Accordion type="single" collapsible className="w-full">
+              <Accordion type="single" collapsible defaultValue="category" className="w-full">
+                <AccordionItem value="category" className="border-amber-600/10">
+                  <AccordionTrigger className="text-sm text-stone-200 hover:text-amber-500 py-3">
+                    <div className="flex items-center gap-2">
+                      <Settings className="w-4 h-4" />
+                      <span>Kategori</span>
+                    </div>
+                  </AccordionTrigger>
+                  <AccordionContent className="space-y-1.5 pt-1">
+                    {['Seni', 'Sejarah', 'Geografi', 'Budaya'].map(cat => (
+                      <label key={cat} className="flex items-center gap-2 text-xs text-stone-400 hover:text-amber-400 cursor-pointer p-1">
+                        <input 
+                          type="checkbox" 
+                          checked={selectedCategories.has(cat)}
+                          onChange={() => toggleCategory(cat)}
+                          className="accent-amber-600 w-3 h-3" 
+                        />
+                        {cat}
+                      </label>
+                    ))}
+                  </AccordionContent>
+                </AccordionItem>
                 <AccordionItem value="era" className="border-amber-600/10">
                   <AccordionTrigger className="text-sm text-stone-200 hover:text-amber-500 py-3">
                     <div className="flex items-center gap-2">
@@ -257,26 +304,10 @@ export default function NusaGraph() {
                     </div>
                   </AccordionTrigger>
                   <AccordionContent className="space-y-1.5 pt-1">
-                    {['Zaman Kuno', 'Kerajaan Hindu-Buddha', 'Kesultanan Islam', 'Masa Kolonial', 'Modern'].map(era => (
+                    {['Zaman Kuno', 'Abad 4-10', 'Abad 11-15', 'Masa Kolonial', 'Modern'].map(era => (
                       <label key={era} className="flex items-center gap-2 text-xs text-stone-400 hover:text-amber-400 cursor-pointer p-1">
                         <input type="checkbox" className="accent-amber-600 w-3 h-3" />
                         {era}
-                      </label>
-                    ))}
-                  </AccordionContent>
-                </AccordionItem>
-                <AccordionItem value="location" className="border-amber-600/10">
-                  <AccordionTrigger className="text-sm text-stone-200 hover:text-amber-500 py-3">
-                    <div className="flex items-center gap-2">
-                      <MapPin className="w-4 h-4" />
-                      <span>Lokasi</span>
-                    </div>
-                  </AccordionTrigger>
-                  <AccordionContent className="space-y-1.5 pt-1">
-                    {['Jawa', 'Sumatera', 'Bali', 'Sulawesi', 'Kalimantan', 'Maluku', 'Papua'].map(loc => (
-                      <label key={loc} className="flex items-center gap-2 text-xs text-stone-400 hover:text-amber-400 cursor-pointer p-1">
-                        <input type="checkbox" className="accent-amber-600 w-3 h-3" />
-                        {loc}
                       </label>
                     ))}
                   </AccordionContent>
@@ -309,10 +340,9 @@ export default function NusaGraph() {
           )}
         </aside>
 
-        {/* Center Main Area (Graph) */}
         <main className="flex-1 relative bg-[#151310] overflow-hidden">
           <GraphView 
-            data={{ nodes: mockNodes, links: mockLinks }} 
+            data={filteredGraph} 
             onNodeClick={handleNodeClick}
             onLinkClick={handleLinkClick}
             visibleNodes={mode === 'challenge' ? visibleNodes : undefined}
@@ -332,7 +362,6 @@ export default function NusaGraph() {
           )}
         </main>
 
-        {/* Right Sidebar */}
         <ContextualSidebar 
           selectedNode={selectedNode}
           selectedLink={selectedLink}
