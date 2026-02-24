@@ -8,14 +8,13 @@ import {
   Settings, 
   Map, 
   Gamepad2, 
-  ChevronRight, 
   History, 
-  Layers, 
   MapPin,
   Mountain,
   Zap,
   BookOpen,
-  X
+  X,
+  Target
 } from 'lucide-react';
 
 import { GraphView } from '@/components/GraphView';
@@ -56,6 +55,7 @@ export default function NusaGraph() {
       setVisibleNodes(new Set());
       setSelectedNode(null);
       setSelectedLink(null);
+      setQuestPath([]);
     }
   }, [mode]);
 
@@ -74,8 +74,10 @@ export default function NusaGraph() {
     const initialVisible = new Set<string>();
     initialVisible.add(start.id);
     mockLinks.forEach(l => {
-      if (l.source === start.id) initialVisible.add(typeof l.target === 'string' ? l.target : (l.target as any).id);
-      if (l.target === start.id) initialVisible.add(typeof l.source === 'string' ? l.source : (l.source as any).id);
+      const sId = typeof l.source === 'string' ? l.source : (l.source as any).id;
+      const tId = typeof l.target === 'string' ? l.target : (l.target as any).id;
+      if (sId === start.id) initialVisible.add(tId);
+      if (tId === start.id) initialVisible.add(sId);
     });
     setVisibleNodes(initialVisible);
   };
@@ -103,23 +105,20 @@ export default function NusaGraph() {
     } else {
       if (!questCurrentNode || !questTarget || questEnergy <= 0) return;
 
-      const isNeighbor = mockLinks.some(l => 
-        (l.source === questCurrentNode.id && l.target === node.id) || 
-        (l.source === node.id && l.target === questCurrentNode.id) ||
-        ((l.source as any).id === questCurrentNode.id && (l.target as any).id === node.id) ||
-        ((l.target as any).id === questCurrentNode.id && (l.source as any).id === node.id)
-      );
+      const isNeighbor = mockLinks.some(l => {
+        const sId = typeof l.source === 'string' ? l.source : (l.source as any).id;
+        const tId = typeof l.target === 'string' ? l.target : (l.target as any).id;
+        return (sId === questCurrentNode.id && tId === node.id) || (tId === questCurrentNode.id && sId === node.id);
+      });
 
       if (isNeighbor) {
         const newVisible = new Set(visibleNodes);
         newVisible.add(node.id);
         mockLinks.forEach(l => {
-          if (l.source === node.id || (l.source as any).id === node.id) {
-            newVisible.add(typeof l.target === 'string' ? l.target : (l.target as any).id);
-          }
-          if (l.target === node.id || (l.target as any).id === node.id) {
-            newVisible.add(typeof l.source === 'string' ? l.source : (l.source as any).id);
-          }
+          const sId = typeof l.source === 'string' ? l.source : (l.source as any).id;
+          const tId = typeof l.target === 'string' ? l.target : (l.target as any).id;
+          if (sId === node.id) newVisible.add(tId);
+          if (tId === node.id) newVisible.add(sId);
         });
         setVisibleNodes(newVisible);
         setQuestCurrentNode(node);
@@ -168,79 +167,79 @@ export default function NusaGraph() {
       {/* Navbar */}
       <header className="h-16 border-b border-amber-600/30 flex items-center justify-between px-6 bg-[#1a1815] z-50 shrink-0">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-amber-600/20 rounded-full flex items-center justify-center border border-amber-600/50 gold-glow">
-            <Mountain className="text-amber-500 w-6 h-6" />
+          <div className="w-9 h-9 bg-amber-600/20 rounded-full flex items-center justify-center border border-amber-600/50 gold-glow">
+            <Mountain className="text-amber-500 w-5 h-5" />
           </div>
-          <h1 className="font-headline text-2xl text-amber-500 tracking-wide font-bold">NusaGraph</h1>
+          <h1 className="font-headline text-xl text-amber-500 tracking-wide font-bold">NusaGraph</h1>
         </div>
 
-        <div className="flex-1 max-w-xl px-8 hidden md:block">
+        <div className="flex-1 max-w-lg px-8 hidden md:block">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground w-4 h-4" />
             <Input 
               placeholder="Cari pusaka, sejarah, atau lokasi..." 
-              className="pl-10 bg-neutral-900 border-neutral-800 focus:border-amber-600/50"
+              className="pl-10 bg-neutral-900/50 border-neutral-800 focus:border-amber-600/50 h-9"
             />
           </div>
         </div>
 
-        <div className="flex items-center gap-4">
-          <div className="flex items-center bg-neutral-900 p-1 rounded-lg border border-neutral-800">
+        <div className="flex items-center gap-3">
+          <div className="flex items-center bg-neutral-900/80 p-1 rounded-lg border border-neutral-800">
             <button 
               onClick={() => setMode('exploration')}
-              className={`flex items-center gap-2 px-3 py-1.5 rounded-md transition-all ${mode === 'exploration' ? 'bg-amber-600 text-black shadow-md' : 'hover:bg-neutral-800 text-muted-foreground'}`}
+              className={`flex items-center gap-2 px-3 py-1 rounded-md transition-all ${mode === 'exploration' ? 'bg-amber-600 text-black shadow-md' : 'hover:bg-neutral-800 text-muted-foreground'}`}
             >
-              <Map className="w-4 h-4" />
-              <span className="text-sm font-medium">Eksplorasi</span>
+              <Map className="w-3.5 h-3.5" />
+              <span className="text-xs font-semibold uppercase tracking-wider">Eksplorasi</span>
             </button>
             <button 
               onClick={() => setMode('challenge')}
-              className={`flex items-center gap-2 px-3 py-1.5 rounded-md transition-all ${mode === 'challenge' ? 'bg-amber-600 text-black shadow-md' : 'hover:bg-neutral-800 text-muted-foreground'}`}
+              className={`flex items-center gap-2 px-3 py-1 rounded-md transition-all ${mode === 'challenge' ? 'bg-amber-600 text-black shadow-md' : 'hover:bg-neutral-800 text-muted-foreground'}`}
             >
-              <Gamepad2 className="w-4 h-4" />
-              <span className="text-sm font-medium">NusaQuest</span>
+              <Gamepad2 className="w-3.5 h-3.5" />
+              <span className="text-xs font-semibold uppercase tracking-wider">NusaQuest</span>
             </button>
           </div>
-          <Button variant="ghost" size="icon" className="text-muted-foreground">
-            <Settings className="w-5 h-5" />
+          <Button variant="ghost" size="icon" className="text-muted-foreground w-8 h-8">
+            <Settings className="w-4 h-4" />
           </Button>
         </div>
       </header>
 
       <div className="flex flex-1 overflow-hidden relative">
         {/* Left Sidebar */}
-        <aside className="w-80 bg-[#1a1815] border-r border-amber-600/20 p-6 z-30 overflow-y-auto batik-overlay shrink-0">
+        <aside className="w-64 bg-[#1a1815] border-r border-amber-600/20 p-5 z-30 overflow-y-auto batik-overlay shrink-0">
           {mode === 'exploration' ? (
             <div className="space-y-6">
-              <h2 className="font-headline text-xl text-amber-500 mb-4 border-b border-amber-600/20 pb-2">Filter Pengetahuan</h2>
+              <h2 className="font-headline text-lg text-amber-500 mb-4 border-b border-amber-600/20 pb-2">Filter Budaya</h2>
               <Accordion type="single" collapsible className="w-full">
                 <AccordionItem value="era" className="border-amber-600/10">
-                  <AccordionTrigger className="text-amber-100 hover:text-amber-500">
+                  <AccordionTrigger className="text-sm text-amber-100 hover:text-amber-500 py-3">
                     <div className="flex items-center gap-2">
                       <History className="w-4 h-4" />
                       <span>Era Sejarah</span>
                     </div>
                   </AccordionTrigger>
-                  <AccordionContent className="space-y-2 pt-2">
+                  <AccordionContent className="space-y-1.5 pt-1">
                     {['Zaman Kuno', 'Kerajaan Hindu-Buddha', 'Kesultanan Islam', 'Masa Kolonial', 'Modern'].map(era => (
-                      <label key={era} className="flex items-center gap-2 text-sm text-muted-foreground hover:text-amber-400 cursor-pointer p-1">
-                        <input type="checkbox" className="accent-amber-600" />
+                      <label key={era} className="flex items-center gap-2 text-xs text-muted-foreground hover:text-amber-400 cursor-pointer p-1">
+                        <input type="checkbox" className="accent-amber-600 w-3 h-3" />
                         {era}
                       </label>
                     ))}
                   </AccordionContent>
                 </AccordionItem>
                 <AccordionItem value="location" className="border-amber-600/10">
-                  <AccordionTrigger className="text-amber-100 hover:text-amber-500">
+                  <AccordionTrigger className="text-sm text-amber-100 hover:text-amber-500 py-3">
                     <div className="flex items-center gap-2">
                       <MapPin className="w-4 h-4" />
                       <span>Lokasi</span>
                     </div>
                   </AccordionTrigger>
-                  <AccordionContent className="space-y-2 pt-2">
+                  <AccordionContent className="space-y-1.5 pt-1">
                     {['Jawa', 'Sumatera', 'Bali', 'Sulawesi', 'Kalimantan', 'Maluku', 'Papua'].map(loc => (
-                      <label key={loc} className="flex items-center gap-2 text-sm text-muted-foreground hover:text-amber-400 cursor-pointer p-1">
-                        <input type="checkbox" className="accent-amber-600" />
+                      <label key={loc} className="flex items-center gap-2 text-xs text-muted-foreground hover:text-amber-400 cursor-pointer p-1">
+                        <input type="checkbox" className="accent-amber-600 w-3 h-3" />
                         {loc}
                       </label>
                     ))}
@@ -249,28 +248,28 @@ export default function NusaGraph() {
               </Accordion>
             </div>
           ) : (
-            <div className="space-y-8">
+            <div className="space-y-6">
               <div className="p-4 bg-amber-600/5 border border-amber-600/20 rounded-xl terracotta-glow">
-                <h2 className="font-headline text-xl text-amber-500 mb-2 flex items-center gap-2">
-                  <Zap className="w-5 h-5 fill-amber-500" />
-                  Misi Aktif
+                <h2 className="font-headline text-md text-amber-500 mb-3 flex items-center gap-2 font-bold">
+                  <Target className="w-4 h-4 fill-amber-500" />
+                  MISI AKTIF
                 </h2>
                 <div className="space-y-4">
-                  <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 bg-neutral-800 rounded-lg overflow-hidden border border-amber-600/30">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-neutral-800 rounded-lg overflow-hidden border border-amber-600/30">
                       <img src={questTarget?.image_url} alt={questTarget?.name} className="w-full h-full object-cover opacity-80" />
                     </div>
-                    <div>
-                      <div className="text-amber-100 font-bold font-headline">{questTarget?.name}</div>
-                      <div className="text-xs text-amber-600">{questTarget?.location}</div>
+                    <div className="min-w-0">
+                      <div className="text-amber-100 font-bold text-sm truncate">{questTarget?.name}</div>
+                      <div className="text-[10px] text-amber-600 uppercase tracking-tighter">{questTarget?.location}</div>
                     </div>
                   </div>
                 </div>
               </div>
 
-              <div className="space-y-3">
-                <div className="flex items-center justify-between text-sm font-medium">
-                  <span className="text-amber-100">Energi Eksplorasi</span>
+              <div className="space-y-3 px-1">
+                <div className="flex items-center justify-between text-xs font-bold uppercase tracking-wider">
+                  <span className="text-amber-500/80">Energi</span>
                   <span className="text-amber-500">{questEnergy}/5</span>
                 </div>
                 <BatteryIndicator energy={questEnergy} maxEnergy={5} />
@@ -289,41 +288,45 @@ export default function NusaGraph() {
           />
           
           {mode === 'challenge' && (
-            <div className="absolute top-6 left-6 pointer-events-none">
-              <div className="bg-black/60 backdrop-blur-md p-4 rounded-xl border border-amber-600/30">
-                <div className="text-xs text-amber-500 font-bold uppercase tracking-widest mb-1">Posisi Saat Ini</div>
-                <div className="text-2xl font-headline text-white">{questCurrentNode?.name}</div>
+            <motion.div 
+              initial={{ opacity: 0, y: -20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="absolute top-4 left-4 pointer-events-none z-20"
+            >
+              <div className="bg-black/80 backdrop-blur-md p-3 rounded-lg border border-amber-600/30 shadow-2xl">
+                <div className="text-[10px] text-amber-500 font-bold uppercase tracking-widest mb-0.5">Posisi Saat Ini</div>
+                <div className="text-lg font-headline text-white font-bold">{questCurrentNode?.name}</div>
               </div>
-            </div>
+            </motion.div>
           )}
         </main>
 
         {/* Right Sidebar */}
-        <AnimatePresence>
+        <AnimatePresence mode="wait">
           {(selectedNode || selectedLink || (mode === 'challenge' && questPath.length > 0)) && (
             <motion.aside 
               initial={{ x: '100%' }}
               animate={{ x: 0 }}
               exit={{ x: '100%' }}
               transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-              className="w-96 bg-[#1a1815] border-l border-amber-600/20 z-40 overflow-y-auto batik-overlay shrink-0 shadow-2xl"
+              className="w-80 bg-[#1a1815] border-l border-amber-600/20 z-40 overflow-y-auto batik-overlay shrink-0 shadow-2xl flex flex-col"
             >
-              <div className="sticky top-0 p-4 flex justify-end z-50 bg-[#1a1815]/80 backdrop-blur-sm">
+              <div className="p-4 flex justify-end z-50 bg-[#1a1815]/95 backdrop-blur-sm sticky top-0 border-b border-amber-600/10">
                 <Button 
                   onClick={() => { setSelectedNode(null); setSelectedLink(null); }}
                   variant="ghost" 
                   size="icon"
-                  className="rounded-full hover:bg-amber-600/20 text-amber-500"
+                  className="rounded-full hover:bg-amber-600/20 text-amber-500 w-8 h-8"
                 >
-                  <X className="w-5 h-5" />
+                  <X className="w-4 h-4" />
                 </Button>
               </div>
 
               {mode === 'exploration' ? (
-                <div className="p-8 pt-0 space-y-8">
+                <div className="p-6 space-y-6">
                   {selectedNode ? (
                     <div className="space-y-6">
-                      <div className="aspect-video w-full rounded-xl overflow-hidden border border-amber-600/40 gold-glow">
+                      <div className="aspect-[4/3] w-full rounded-xl overflow-hidden border border-amber-600/40 gold-glow">
                         <img 
                           src={selectedNode.image_url} 
                           alt={selectedNode.name} 
@@ -331,24 +334,24 @@ export default function NusaGraph() {
                         />
                       </div>
                       
-                      <div className="space-y-2">
-                        <h2 className="text-4xl font-headline text-amber-500">{selectedNode.name}</h2>
-                        <p className="text-sm text-amber-600 font-medium uppercase tracking-widest">{selectedNode.era} • {selectedNode.location}</p>
+                      <div className="space-y-1">
+                        <h2 className="text-2xl font-headline text-amber-500 leading-tight">{selectedNode.name}</h2>
+                        <p className="text-[10px] text-amber-600 font-bold uppercase tracking-widest">{selectedNode.era} • {selectedNode.location}</p>
                       </div>
 
-                      <div className="space-y-4">
-                        <div className="flex items-center gap-2 text-amber-200">
-                          <BookOpen className="w-5 h-5" />
-                          <h3 className="font-headline text-xl">Wawasan AI</h3>
+                      <div className="space-y-3">
+                        <div className="flex items-center gap-2 text-amber-200 border-b border-amber-600/10 pb-2">
+                          <BookOpen className="w-4 h-4" />
+                          <h3 className="font-headline text-md">Wawasan AI</h3>
                         </div>
                         {isLoadingAi ? (
                           <div className="space-y-2 animate-pulse">
-                            <div className="h-4 bg-neutral-800 rounded w-full"></div>
-                            <div className="h-4 bg-neutral-800 rounded w-5/6"></div>
-                            <div className="h-4 bg-neutral-800 rounded w-4/6"></div>
+                            <div className="h-3 bg-neutral-800 rounded w-full"></div>
+                            <div className="h-3 bg-neutral-800 rounded w-5/6"></div>
+                            <div className="h-3 bg-neutral-800 rounded w-4/6"></div>
                           </div>
                         ) : (
-                          <p className="text-muted-foreground leading-relaxed text-sm italic">
+                          <p className="text-muted-foreground leading-relaxed text-sm italic font-serif">
                             {nodeSummary || selectedNode.description}
                           </p>
                         )}
@@ -356,23 +359,26 @@ export default function NusaGraph() {
                     </div>
                   ) : selectedLink ? (
                     <div className="space-y-6">
-                      <div className="flex items-center justify-between">
-                        <h2 className="text-3xl font-headline text-amber-500">Hubungan</h2>
-                        <div className="bg-amber-600/10 border border-amber-600/30 px-3 py-1 rounded-full text-xs text-amber-500 font-bold">
+                      <div className="space-y-2">
+                        <div className="bg-amber-600/10 border border-amber-600/30 px-3 py-1 rounded-full text-[10px] text-amber-500 font-bold inline-block">
                           {selectedLink.label}
                         </div>
+                        <h2 className="text-xl font-headline text-amber-500">Hubungan Pengetahuan</h2>
                       </div>
 
-                      <div className="p-6 bg-[#25211b] rounded-xl border border-amber-600/20 shadow-2xl">
-                        <div className="space-y-4">
-                          <h3 className="text-xl font-headline text-amber-200">Manuskrip Pengetahuan</h3>
+                      <div className="p-5 bg-[#25211b] rounded-xl border border-amber-600/20 shadow-2xl relative overflow-hidden">
+                        <div className="absolute top-0 right-0 p-2 opacity-10">
+                          <BookOpen className="w-12 h-12 text-amber-500" />
+                        </div>
+                        <div className="space-y-4 relative z-10">
+                          <h3 className="text-sm font-bold uppercase tracking-widest text-amber-200/50">Manuskrip</h3>
                           {isLoadingAi ? (
                              <div className="space-y-2 animate-pulse">
-                              <div className="h-4 bg-neutral-800 rounded w-full"></div>
-                              <div className="h-4 bg-neutral-800 rounded w-5/6"></div>
+                              <div className="h-3 bg-neutral-800 rounded w-full"></div>
+                              <div className="h-3 bg-neutral-800 rounded w-5/6"></div>
                             </div>
                           ) : (
-                            <p className="text-amber-100/80 leading-relaxed text-sm font-serif">
+                            <p className="text-amber-100/90 leading-relaxed text-sm font-serif italic">
                               {linkExplanation || selectedLink.explanation}
                             </p>
                           )}
@@ -382,21 +388,29 @@ export default function NusaGraph() {
                   ) : null}
                 </div>
               ) : (
-                <div className="p-8 pt-0 space-y-8">
-                  <h2 className="text-3xl font-headline text-amber-500 border-b border-amber-600/20 pb-4">Jurnal Perjalanan</h2>
-                  <div className="relative">
-                    <div className="absolute left-4 top-0 bottom-0 w-px bg-amber-600/20"></div>
-                    <div className="space-y-6">
+                <div className="p-6 flex-1 flex flex-col">
+                  <h2 className="text-xl font-headline text-amber-500 border-b border-amber-600/20 pb-4 flex items-center gap-2">
+                    <History className="w-5 h-5" />
+                    Jurnal Perjalanan
+                  </h2>
+                  <div className="mt-6 relative flex-1">
+                    <div className="absolute left-3 top-0 bottom-0 w-px bg-amber-600/20"></div>
+                    <div className="space-y-5">
                       {questPath.map((node, i) => (
-                        <div key={i} className="flex gap-6 relative">
-                          <div className={`w-8 h-8 rounded-full flex items-center justify-center z-10 border ${i === questPath.length - 1 ? 'bg-amber-600 border-amber-400 gold-glow' : 'bg-neutral-900 border-amber-600/30'}`}>
-                            {i === questPath.length - 1 ? <Zap className="w-4 h-4 text-black" /> : <div className="w-2 h-2 rounded-full bg-amber-600/40"></div>}
+                        <motion.div 
+                          key={i} 
+                          initial={{ opacity: 0, x: 10 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          className="flex gap-5 relative pl-1"
+                        >
+                          <div className={`w-6 h-6 rounded-full flex items-center justify-center z-10 border shrink-0 ${i === questPath.length - 1 ? 'bg-amber-600 border-amber-400 gold-glow scale-110' : 'bg-neutral-900 border-amber-600/30'}`}>
+                            {i === questPath.length - 1 ? <Zap className="w-3 h-3 text-black fill-black" /> : <div className="w-1.5 h-1.5 rounded-full bg-amber-600/40"></div>}
                           </div>
-                          <div>
-                            <div className={`text-sm font-bold ${i === questPath.length - 1 ? 'text-amber-400' : 'text-amber-100/60'}`}>{node.name}</div>
-                            <div className="text-xs text-muted-foreground">{node.location}</div>
+                          <div className="min-w-0">
+                            <div className={`text-sm font-bold truncate ${i === questPath.length - 1 ? 'text-amber-400' : 'text-amber-100/60'}`}>{node.name}</div>
+                            <div className="text-[10px] text-muted-foreground uppercase tracking-tighter">{node.location}</div>
                           </div>
-                        </div>
+                        </motion.div>
                       ))}
                     </div>
                   </div>
